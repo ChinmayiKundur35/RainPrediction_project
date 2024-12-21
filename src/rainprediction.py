@@ -1,6 +1,11 @@
+
+
 import numpy as np
 import sys
 import pandas as pd
+import mlflow
+import mlflow.keras
+
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -213,11 +218,11 @@ model.add(Dropout(0.5))
 model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
 
 # Compiling the ANN
-opt = Adam(learning_rate=0.00009)
+opt = Adam(learning_rate=0.00001)
 model.compile(optimizer = opt, loss = 'binary_crossentropy', metrics = ['accuracy'])
 
 # Train the ANN
-history = model.fit(X_train, y_train, batch_size = 32, epochs = 150, callbacks=[early_stopping], validation_split=0.2)
+history = model.fit(X_train, y_train, batch_size = 32, epochs = 150, callbacks=[early_stopping], validation_split=0.3)
 
 history_df = pd.DataFrame(history.history)
 
@@ -284,7 +289,50 @@ html_content = f"""
 #with open('/var/www/html/classification_report.html', 'w') as file:
 #    file.write(html_content)
 
-print("HTML report with classification report and confusion matrix generated successfully!")
+
+# mlflow
+
+# Set up MLflow tracking URI and experiment name
+mlflow.set_tracking_uri("http://44.204.113.135:5000")
+mlflow.set_experiment("rain_prediction")
+
+# Start an MLflow run
+with mlflow.start_run():
+    # Log model hyperparameters
+    mlflow.log_param("learning_rate", 0.00009)
+    mlflow.log_param("batch_size", 32)
+    mlflow.log_param("epochs", 150)
+    
+    # Log metrics
+    accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average='weighted')
+    precision = precision_score(y_test, y_pred, average='weighted')
+    recall = recall_score(y_test, y_pred, average='weighted')
+    
+    mlflow.log_metric("accuracy", accuracy)
+    mlflow.log_metric("f1_score", f1)
+    mlflow.log_metric("precision", precision)
+    mlflow.log_metric("recall", recall)
+    
+    # Log classification report as an artifact
+    classification_rep = classification_report(y_test, y_pred)
+    with open("classification_report.txt", "w") as f:
+        f.write(classification_rep)
+    mlflow.log_artifact("classification_report.txt")
+    
+    # Log confusion matrix plot as an artifact
+    plt.savefig("confusion_matrix.png")
+    mlflow.log_artifact("confusion_matrix.png")
+    
+    # Log the trained model
+    mlflow.keras.log_model(model, "model", registered_model_name="RainPredictionModel")
+    print("MLFLOW report and confusion matrix generated successfully!")
+    print("mlflow test 1")
+
+
+
+
+
 
 
 
